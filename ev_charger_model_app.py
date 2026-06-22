@@ -230,7 +230,7 @@ with st.sidebar:
         help="Price charged to customers in ₹/kWh. This is the critical revenue lever."
     )
     electricity_sale_price_usd = electricity_sale_price_inr / USD_TO_INR
-    st.markdown(f'<div class="explainer">= ${electricity_sale_price_usd:.3f}/kWh at ₹{USD_TO_INR}/$ exchange rate</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="explainer">= ${electricity_sale_price_usd:.2f}/kWh at ₹{USD_TO_INR}/$ exchange rate</div>', unsafe_allow_html=True)
 
 # ─── Model run ─────────────────────────────────────────────────────────────────
 m = run_model(
