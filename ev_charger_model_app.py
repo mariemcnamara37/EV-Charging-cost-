@@ -326,55 +326,78 @@ with col_a:
 with col_b:
     st.markdown("#### Annual opex breakdown")
 
-    fig_opex = go.Figure()
     opex_items = [
         ("Energy cost",    m["energy_cost_inr"],  CORAL),
         ("Demand charges", m["demand_cost_inr"],  AMBER),
         ("Land lease",     m["land_lease_inr"],   SLATE),
         ("O&M / labour",   m["maintenance_inr"],  TEAL),
     ]
-    for label, val, color in opex_items:
-        fig_opex.add_trace(go.Bar(
-            name=label,
-            x=["Annual opex"],
-            y=[val],
-            marker_color=color,
-            text=[f"{val/1e5:.1f}L"],
-            textposition="inside",
-            insidetextanchor="middle",
-            textfont=dict(size=12, color="white"),
-            hovertemplate=f"{label}<br>₹{{y:,.0f}} ({{y/1e5:.1f}}L)<extra></extra>",
-        ))
-    fig_opex.update_layout(**{**chart_layout,
-        "barmode": "stack",
-        "showlegend": True,
-        "legend": dict(orientation="h", yanchor="bottom", y=-0.35,
-                       xanchor="center", x=0.5, font=dict(size=11)),
-        "xaxis": dict(showgrid=False, zeroline=False, showticklabels=False),
-        "yaxis": dict(
-            showgrid=True, gridcolor="#f1f5f9", zeroline=False,
-            tickformat=".2s",
-            tickprefix="₹",
-            ticksuffix="",
-            tickvals=[i * 1e5 for i in range(0, int(m["total_opex_inr"] / 1e5) + 3)],
-            ticktext=[f"₹{i}L" for i in range(0, int(m["total_opex_inr"] / 1e5) + 3)],
-        ),
-        "margin": dict(l=50, r=10, t=10, b=10),
-        "height": 320,
-    })
+    opex_labels = [x[0] for x in opex_items]
+    opex_vals   = [x[1] for x in opex_items]
+    opex_colors = [x[2] for x in opex_items]
+
+    fig_opex = go.Figure(go.Pie(
+        labels=opex_labels,
+        values=opex_vals,
+        marker=dict(colors=opex_colors, line=dict(color="#ffffff", width=2)),
+        hole=0.55,
+        textinfo="percent",
+        textposition="outside",
+        textfont=dict(size=12),
+        hovertemplate="%{label}<br>%{customdata}<br>%{percent}<extra></extra>",
+        customdata=[fmt_inr(v) for v in opex_vals],
+        direction="clockwise",
+        sort=False,
+    ))
+    fig_opex.update_layout(
+        paper_bgcolor=CHART_BG, plot_bgcolor=CHART_BG,
+        font=dict(family="Inter, sans-serif", size=12, color="#374151"),
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=-0.18,
+                    xanchor="center", x=0.5, font=dict(size=11)),
+        margin=dict(l=10, r=10, t=10, b=10),
+        height=300,
+        annotations=[dict(
+            text=f"<b>{fmt_inr(m['total_opex_inr'])}</b><br><span style='font-size:10px;color:#9ca3af'>total opex</span>",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=13, color="#374151"),
+            xanchor="center", yanchor="middle",
+        )],
+    )
     st.plotly_chart(fig_opex, use_container_width=True)
 
+    # Table with % of total as light gray subtext
+    total_opex = m["total_opex_inr"]
     opex_rows = [
-        ("Energy cost",    m["energy_cost_inr"],  m["energy_cost_inr"]  / USD_TO_INR),
-        ("Demand charges", m["demand_cost_inr"],  m["demand_cost_inr"]  / USD_TO_INR),
-        ("Land lease",     m["land_lease_inr"],   m["land_lease_inr"]   / USD_TO_INR),
-        ("O&M / labour",   m["maintenance_inr"],  m["maintenance_inr"]  / USD_TO_INR),
-        ("**Total**",      m["total_opex_inr"],   m["total_opex_inr"]   / USD_TO_INR),
+        (label, val, val / USD_TO_INR, val / total_opex * 100)
+        for label, val, _ in opex_items
     ]
-    df_opex = pd.DataFrame(opex_rows, columns=["Item", "₹", "USD"])
-    df_opex["₹"]   = df_opex["₹"].apply(fmt_inr)
-    df_opex["USD"] = df_opex["USD"].apply(fmt_usd)
-    st.dataframe(df_opex, hide_index=True, use_container_width=True)
+    opex_rows.append(("**Total**", total_opex, total_opex / USD_TO_INR, 100.0))
+
+    table_html = """
+    <table style="width:100%;font-size:13px;border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:5px 4px;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;">Item</th>
+          <th style="text-align:right;padding:5px 4px;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;">₹</th>
+          <th style="text-align:right;padding:5px 4px;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;">USD</th>
+        </tr>
+      </thead>
+      <tbody>
+    """
+    for i, (label, val_inr, val_usd, pct) in enumerate(opex_rows):
+        is_total = label == "**Total**"
+        border = "border-top:1px solid #e5e7eb;" if is_total else "border-bottom:0.5px solid #f3f4f6;"
+        fw = "font-weight:600;" if is_total else ""
+        pct_html = f'<div style="font-size:10px;color:#9ca3af;line-height:1.2;">{pct:.0f}% of total</div>' if not is_total else ""
+        table_html += f"""
+        <tr>
+          <td style="padding:6px 4px;{border}{fw}">{label.replace("**","")}{pct_html}</td>
+          <td style="text-align:right;padding:6px 4px;{border}{fw}">{fmt_inr(val_inr)}</td>
+          <td style="text-align:right;padding:6px 4px;{border}{fw};color:#9ca3af;">{fmt_usd(val_usd)}</td>
+        </tr>"""
+    table_html += "</tbody></table>"
+    st.markdown(table_html, unsafe_allow_html=True)
 
 # ── 3. Cash flows ──────────────────────────────────────────────────────────────
 with col_c:
@@ -392,11 +415,24 @@ with col_c:
         customdata=[fmt_inr(v) for v in cfs],
     ))
     fig_cf.add_hline(y=0, line_width=1, line_color="#94a3b8")
+
+    cf_max = max(abs(v) for v in cfs)
+    cr_range = cf_max / 1e7
+    cr_step = 0.5 if cr_range < 3 else (1 if cr_range < 10 else 5)
+    import math
+    cr_max_tick = math.ceil(cf_max / 1e7 / cr_step) * cr_step
+    cr_min_tick = math.floor(min(cfs) / 1e7 / cr_step) * cr_step
+    tick_vals = [round(i * cr_step, 2) for i in range(int(cr_min_tick / cr_step), int(cr_max_tick / cr_step) + 2)]
+
     fig_cf.update_layout(**{**chart_layout,
         "showlegend": False,
-        "yaxis": dict(showgrid=True, gridcolor="#f1f5f9", zeroline=True,
-                      zerolinecolor="#94a3b8", tickprefix="₹", tickformat=".3s"),
-        "margin": dict(l=10, r=10, t=10, b=10),
+        "yaxis": dict(
+            showgrid=True, gridcolor="#f1f5f9", zeroline=True,
+            zerolinecolor="#94a3b8",
+            tickvals=[v * 1e7 for v in tick_vals],
+            ticktext=[f"₹{v:.1f}Cr" for v in tick_vals],
+        ),
+        "margin": dict(l=55, r=10, t=10, b=10),
         "height": 280,
     })
     st.plotly_chart(fig_cf, use_container_width=True)
