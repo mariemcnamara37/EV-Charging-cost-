@@ -80,12 +80,18 @@ def fmt_usd(val):
     return f"${val:,.0f}"
 
 def calc_irr(cashflows):
-    """Newton-Raphson IRR."""
+    """Newton-Raphson IRR. Returns None if no valid solution exists."""
     cf = np.array(cashflows, dtype=float)
+
+    # IRR requires at least one sign change in cash flows
+    signs = np.sign(cf[cf != 0])
+    if len(np.unique(signs)) < 2:
+        return None
+
     rate = 0.3
     for _ in range(1000):
         t = np.arange(len(cf))
-        pv = np.sum(cf / (1 + rate) ** t)
+        pv  = np.sum(cf / (1 + rate) ** t)
         dpv = np.sum(-t * cf / (1 + rate) ** (t + 1))
         if abs(dpv) < 1e-12:
             break
@@ -94,6 +100,10 @@ def calc_irr(cashflows):
             rate = new_rate
             break
         rate = max(new_rate, -0.999)
+
+    # Sanity check — reject obviously wrong results from divergence
+    if not (-0.999 < rate < 100):
+        return None
     return rate
 
 def run_model(charger_size, charger_quantity, line_km, daily_util_hrs,
@@ -238,9 +248,16 @@ st.markdown(f"**{charger_quantity}× {charger_size} kW chargers · {selected_sta
 st.divider()
 
 # ── KPI row ────────────────────────────────────────────────────────────────────
-irr_pct = m["irr"] * 100
-irr_badge = "badge-green" if irr_pct > 20 else "badge-amber" if irr_pct > 0 else "badge-red"
-irr_label = "Strong" if irr_pct > 20 else "Moderate" if irr_pct > 0 else "Negative"
+irr = m["irr"]
+if irr is None:
+    irr_pct_str = "N/A"
+    irr_badge   = "badge-red"
+    irr_label   = "Unviable"
+else:
+    irr_pct     = irr * 100
+    irr_pct_str = f"{irr_pct:.1f}%"
+    irr_badge   = "badge-green" if irr_pct > 20 else "badge-amber" if irr_pct > 0 else "badge-red"
+    irr_label   = "Strong" if irr_pct > 20 else "Moderate" if irr_pct > 0 else "Negative"
 
 col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -260,7 +277,7 @@ kpi_card(col3, "Annual opex",    m["total_opex_inr"],  m["total_opex_usd"])
 col4.markdown(f"""
 <div class="metric-block">
   <div class="metric-label">15-yr project IRR <span title="Internal rate of return on equity over a 15-year project life, with 80% debt at 9% over 15 years." style="cursor:help; color:#adb5bd;">ⓘ</span></div>
-  <div class="metric-primary">{irr_pct:.1f}%</div>
+  <div class="metric-primary">{irr_pct_str}</div>
   <span class="metric-badge {irr_badge}">{irr_label}</span>
 </div>""", unsafe_allow_html=True)
 
