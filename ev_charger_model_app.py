@@ -212,9 +212,9 @@ with st.sidebar:
         index=sorted(TARIFF_DATA.keys()).index("Rajasthan")
     )
 
-    st.markdown('<div class="section-head">Scale & usage</div>', unsafe_allow_html=True)
-
     charger_quantity = st.slider("Number of chargers", min_value=1, max_value=50, value=10, step=1)
+
+    st.markdown('<div class="section-head">Utilization</div>', unsafe_allow_html=True)
 
     daily_util_hrs = st.slider("Daily utilization (hrs/day)", min_value=1.0, max_value=20.0, value=5.0, step=0.5)
     st.markdown('<div class="explainer">Average hours each charger actively dispenses power per day.</div>', unsafe_allow_html=True)
