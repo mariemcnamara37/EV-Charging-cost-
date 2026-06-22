@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -375,29 +376,37 @@ with col_b:
     opex_rows.append(("**Total**", total_opex, total_opex / USD_TO_INR, 100.0))
 
     table_html = """
-    <table style="width:100%;font-size:13px;border-collapse:collapse;">
+    <style>
+      body { margin: 0; font-family: sans-serif; }
+      table { width:100%; font-size:13px; border-collapse:collapse; }
+      th { text-align:left; padding:5px 4px; color:#6b7280; font-weight:500;
+           border-bottom:1px solid #e5e7eb; }
+      th.r { text-align:right; }
+      td { padding:6px 4px; }
+      td.r { text-align:right; }
+      .pct { font-size:10px; color:#9ca3af; line-height:1.4; }
+      .usd { color:#9ca3af; }
+      .total td { border-top:1px solid #e5e7eb; font-weight:600; }
+      .row td { border-bottom:0.5px solid #f3f4f6; }
+    </style>
+    <table>
       <thead>
-        <tr>
-          <th style="text-align:left;padding:5px 4px;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;">Item</th>
-          <th style="text-align:right;padding:5px 4px;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;">₹</th>
-          <th style="text-align:right;padding:5px 4px;color:#6b7280;font-weight:500;border-bottom:1px solid #e5e7eb;">USD</th>
-        </tr>
+        <tr><th>Item</th><th class="r">₹</th><th class="r">USD</th></tr>
       </thead>
       <tbody>
     """
-    for i, (label, val_inr, val_usd, pct) in enumerate(opex_rows):
+    for label, val_inr, val_usd, pct in opex_rows:
         is_total = label == "**Total**"
-        border = "border-top:1px solid #e5e7eb;" if is_total else "border-bottom:0.5px solid #f3f4f6;"
-        fw = "font-weight:600;" if is_total else ""
-        pct_html = f'<div style="font-size:10px;color:#9ca3af;line-height:1.2;">{pct:.0f}% of total</div>' if not is_total else ""
+        row_class = "total" if is_total else "row"
+        pct_html  = f'<div class="pct">{pct:.0f}% of total</div>' if not is_total else ""
         table_html += f"""
-        <tr>
-          <td style="padding:6px 4px;{border}{fw}">{label.replace("**","")}{pct_html}</td>
-          <td style="text-align:right;padding:6px 4px;{border}{fw}">{fmt_inr(val_inr)}</td>
-          <td style="text-align:right;padding:6px 4px;{border}{fw};color:#9ca3af;">{fmt_usd(val_usd)}</td>
+        <tr class="{row_class}">
+          <td>{label.replace("**", "")}{pct_html}</td>
+          <td class="r">{fmt_inr(val_inr)}</td>
+          <td class="r usd">{fmt_usd(val_usd)}</td>
         </tr>"""
     table_html += "</tbody></table>"
-    st.markdown(table_html, unsafe_allow_html=True)
+    components.html(table_html, height=175, scrolling=False)
 
 # ── 3. Cash flows ──────────────────────────────────────────────────────────────
 with col_c:
